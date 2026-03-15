@@ -71,10 +71,25 @@ export default function MaterialDetailPage() {
   return url;
 };
 
-const fileUrl = getRawFileUrl();
+  // const fileUrl = getRawFileUrl();
   // const fileUrl = material?.fileUrl
   //   ? `${material.fileUrl}?token=${getToken()}`
   //   : null;
+
+  const getFileUrl = () => {
+  if (!material?.fileUrl) return null;
+  let url = material.fileUrl;
+
+  // Fix Cloudinary PDF auto-download issue
+  // fl_inline forces browser to display instead of download
+  if (url.includes('cloudinary.com') && material.fileType === 'pdf') {
+      url = url.replace('/upload/', '/upload/fl_inline/');
+    }
+
+    return url;
+  };
+
+  const fileUrl = getFileUrl();
 
   if (loading) return <div className="loading-center"><div className="spinner" /></div>;
   if (!material) return null;
