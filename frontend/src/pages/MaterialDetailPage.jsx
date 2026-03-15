@@ -56,9 +56,25 @@ export default function MaterialDetailPage() {
   };
 
   const getToken = () => localStorage.getItem('studyhub_token') || '';
-  const fileUrl = material?.fileUrl
-    ? `${material.fileUrl}?token=${getToken()}`
-    : null;
+  const getRawFileUrl = () => {
+  if (!material?.fileUrl) return null;
+  let url = material.fileUrl;
+  
+  // For Cloudinary PDFs - change /raw/upload/ to /image/upload/ 
+  // and add fl_attachment:false to force inline viewing
+  if (url.includes('cloudinary.com') && material.fileType === 'pdf') {
+    url = url
+      .replace('/raw/upload/', '/image/upload/fl_attachment:false/')
+      .replace('.pdf', '.pdf');
+  }
+  
+  return url;
+};
+
+const fileUrl = getRawFileUrl();
+  // const fileUrl = material?.fileUrl
+  //   ? `${material.fileUrl}?token=${getToken()}`
+  //   : null;
 
   if (loading) return <div className="loading-center"><div className="spinner" /></div>;
   if (!material) return null;
@@ -110,17 +126,28 @@ export default function MaterialDetailPage() {
                   Become a Member
                 </Link>
               </div>
+            // ) : material.fileType === 'pdf' ? (
+            //   /* ── PDF Viewer ── */
+            //   <div style={{ background: 'var(--slate-800)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', minHeight: '700px' }}>
+            //     <iframe
+            //       src={fileUrl}
+            //       width="100%"
+            //       height="700px"
+            //       style={{ border: 'none', display: 'block' }}
+            //       title={material.title}
+            //     />
+            //   </div>
             ) : material.fileType === 'pdf' ? (
-              /* ── PDF Viewer ── */
-              <div style={{ background: 'var(--slate-800)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', minHeight: '700px' }}>
-                <iframe
-                  src={fileUrl}
-                  width="100%"
-                  height="700px"
-                  style={{ border: 'none', display: 'block' }}
-                  title={material.title}
-                />
-              </div>
+            /* ── PDF Viewer using Google Docs ── */
+            <div style={{ background: 'var(--slate-800)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', minHeight: '700px' }}>
+              <iframe
+                src={`https://docs.google.com/viewer?url=${encodeURIComponent(material.fileUrl)}&embedded=true`}
+                width="100%"
+                height="700px"
+                style={{ border: 'none', display: 'block' }}
+                title={material.title}
+              />
+            </div>
             ) : material.fileType === 'image' ? (
               /* ── Image Preview ── */
               <div style={{ background: 'var(--slate-900)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '500px', padding: '24px' }}>
