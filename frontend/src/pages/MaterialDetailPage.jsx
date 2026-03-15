@@ -40,20 +40,60 @@ export default function MaterialDetailPage() {
     if (!isMember() && !isAdmin()) { toast.error('Membership required to download'); return navigate('/membership'); }
     setDownloading(true);
     try {
-      const res = await materialService.download(id);
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = material.originalName || material.title;
-      a.click();
-      window.URL.revokeObjectURL(url);
-      toast.success('Download started!');
+      const fileUrl = material.fileUrl;
+
+      if (fileUrl && fileUrl.includes('cloudinary.com')) {
+        // For Cloudinary files - open direct URL with fl_attachment flag
+        let downloadUrl = fileUrl;
+        if (material.fileType === 'pdf') {
+          downloadUrl = fileUrl.replace('/upload/', '/upload/fl_attachment/');
+        }
+        // Create invisible link and click it
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = material.originalName || material.title;
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        toast.success('Download started!');
+      } else {
+        // For local storage files
+        const res = await materialService.download(material._id);
+        const url = window.URL.createObjectURL(new Blob([res.data]));
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = material.originalName || material.title;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        toast.success('Download started!');
+      }
     } catch {
       toast.error('Download failed. Please try again.');
     } finally {
       setDownloading(false);
     }
   };
+
+  // const handleDownload = async () => {
+  //   if (!user) { toast.error('Please log in to download'); return navigate('/login'); }
+  //   if (!isMember() && !isAdmin()) { toast.error('Membership required to download'); return navigate('/membership'); }
+  //   setDownloading(true);
+  //   try {
+  //     const res = await materialService.download(id);
+  //     const url = window.URL.createObjectURL(new Blob([res.data]));
+  //     const a = document.createElement('a');
+  //     a.href = url;
+  //     a.download = material.originalName || material.title;
+  //     a.click();
+  //     window.URL.revokeObjectURL(url);
+  //     toast.success('Download started!');
+  //   } catch {
+  //     toast.error('Download failed. Please try again.');
+  //   } finally {
+  //     setDownloading(false);
+  //   }
+  // };
 
   const getToken = () => localStorage.getItem('studyhub_token') || '';
   const getRawFileUrl = () => {
@@ -76,16 +116,28 @@ export default function MaterialDetailPage() {
   //   ? `${material.fileUrl}?token=${getToken()}`
   //   : null;
 
-  const getFileUrl = () => {
-  if (!material?.fileUrl) return null;
-  let url = material.fileUrl;
+  // const getFileUrl = () => {
+  // if (!material?.fileUrl) return null;
+  // let url = material.fileUrl;
 
-  // Fix Cloudinary PDF auto-download issue
-  // fl_inline forces browser to display instead of download
-  if (url.includes('cloudinary.com') && material.fileType === 'pdf') {
+  // // Fix Cloudinary PDF auto-download issue
+  // // fl_inline forces browser to display instead of download
+  // if (url.includes('cloudinary.com') && material.fileType === 'pdf') {
+  //     url = url.replace('/upload/', '/upload/fl_inline/');
+  //   }
+
+  //   return url;
+  // };
+
+  // const fileUrl = getFileUrl();
+
+  const getFileUrl = () => {
+    if (!material?.fileUrl) return null;
+    let url = material.fileUrl;
+    // For Cloudinary PDFs - force inline display
+    if (url.includes('cloudinary.com') && material.fileType === 'pdf') {
       url = url.replace('/upload/', '/upload/fl_inline/');
     }
-
     return url;
   };
 
@@ -167,7 +219,8 @@ export default function MaterialDetailPage() {
               /* ── Image Preview ── */
               <div style={{ background: 'var(--slate-900)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '500px', padding: '24px' }}>
                 <img
-                  src={fileUrl}
+                  // src={fileUrl}
+                  src={material.fileUrl}  // ← use raw URL directly, not fileUrl
                   alt={material.title}
                   style={{ maxWidth: '100%', maxHeight: '600px', objectFit: 'contain', borderRadius: '8px' }}
                   onContextMenu={e => { if (!isMember() && !isAdmin()) e.preventDefault(); }}
