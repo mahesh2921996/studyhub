@@ -98,7 +98,17 @@ materialSchema.index({ title: 'text', description: 'text', tags: 'text', categor
 materialSchema.index({ category: 1, fileType: 1, accessType: 1 });
 
 // Virtual for file URL
+// materialSchema.virtual('fileUrl').get(function() {
+//   return `/uploads/${this.fileType}s/${this.fileName}`;
+// });
+
+// REPLACE WITH:
 materialSchema.virtual('fileUrl').get(function() {
+  // If filePath is already a full URL (Cloudinary), return it directly
+  if (this.filePath && this.filePath.startsWith('http')) {
+    return this.filePath;
+  }
+  // Fallback for local storage
   return `/uploads/${this.fileType}s/${this.fileName}`;
 });
 

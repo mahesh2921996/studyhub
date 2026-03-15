@@ -101,7 +101,10 @@ exports.uploadMaterial = async (req, res) => {
     }
 
     const fileType = getFileType(req.file.mimetype);
-    const fileName = req.file.filename;
+
+    // Cloudinary returns path as the full URL
+    const fileUrl = req.file.path;
+    const fileName = req.file.filename || req.file.public_id;
 
     const material = await Material.create({
       title,
@@ -111,14 +114,34 @@ exports.uploadMaterial = async (req, res) => {
       fileType,
       fileName,
       originalName: req.file.originalname,
-      filePath: req.file.path,
-      fileSize: req.file.size,
+      filePath: fileUrl,   // Cloudinary URL stored here
+      fileSize: req.file.size || 0,
       mimeType: req.file.mimetype,
       accessType: accessType || 'free',
       downloadAllowed: downloadAllowed !== 'false',
       tags: tags ? tags.split(',').map(t => t.trim()) : [],
       uploadedBy: req.user.id
     });
+
+    // const fileType = getFileType(req.file.mimetype);
+    // const fileName = req.file.filename;
+
+    // const material = await Material.create({
+    //   title,
+    //   description,
+    //   category,
+    //   subject,
+    //   fileType,
+    //   fileName,
+    //   originalName: req.file.originalname,
+    //   filePath: req.file.path,
+    //   fileSize: req.file.size,
+    //   mimeType: req.file.mimetype,
+    //   accessType: accessType || 'free',
+    //   downloadAllowed: downloadAllowed !== 'false',
+    //   tags: tags ? tags.split(',').map(t => t.trim()) : [],
+    //   uploadedBy: req.user.id
+    // });
 
     res.status(201).json({ success: true, message: 'Material uploaded successfully!', data: material });
   } catch (err) {
