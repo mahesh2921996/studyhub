@@ -1,0 +1,12 @@
+node_modules/
+.env
+*.env.local
+uploads/pdfs/*
+uploads/images/*
+uploads/videos/*
+!uploads/pdfs/.gitkeep
+!uploads/images/.gitkeep
+!uploads/videos/.gitkeep
+dist/
+.DS_Store
+*.log
