@@ -17,21 +17,29 @@
 const nodemailer = require('nodemailer');
 
 // Create reusable transporter
-const createTransporter = () => {
-  // ⚠️ EMAIL CREDENTIALS: Set EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS in .env
-  return nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.EMAIL_PORT) || 587,
-    secure: false, // true for port 465
-    auth: {
-      user: process.env.EMAIL_USER, // ⚠️ SET EMAIL_USER in .env
-      pass: process.env.EMAIL_PASS  // ⚠️ SET EMAIL_PASS in .env
-    },
-    tls: {
-      rejectUnauthorized: false
-    }
-  });
-};
+// const createTransporter = () => {
+//   // ⚠️ EMAIL CREDENTIALS: Set EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS in .env
+//   return nodemailer.createTransport({
+//     host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+//     port: parseInt(process.env.EMAIL_PORT) || 587,
+//     secure: false, // true for port 465
+//     auth: {
+//       user: process.env.EMAIL_USER, // ⚠️ SET EMAIL_USER in .env
+//       pass: process.env.EMAIL_PASS  // ⚠️ SET EMAIL_PASS in .env
+//     },
+//     tls: {
+//       rejectUnauthorized: false
+//     }
+//   });
+// };
+
+return nodemailer.createTransport({
+  service: 'gmail',  // let nodemailer handle Gmail settings automatically
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
 
 // POST /api/contact
 exports.sendMessage = async (req, res) => {
