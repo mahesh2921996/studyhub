@@ -95,16 +95,13 @@ exports.uploadMaterial = async (req, res) => {
     const { title, description, category, subject, accessType, downloadAllowed, tags } = req.body;
 
     if (!title || !category) {
-      // Clean up uploaded file
-      fs.unlinkSync(req.file.path);
       return res.status(400).json({ success: false, message: 'Title and category are required.' });
     }
 
+    // Upload to Supabase
+    const { uploadToSupabase, getFileType } = require('../middleware/upload');
+    const { fileName, fileUrl } = await uploadToSupabase(req.file);
     const fileType = getFileType(req.file.mimetype);
-
-    // Cloudinary returns path as the full URL
-    const fileUrl = req.file.path;
-    const fileName = req.file.filename || req.file.public_id;
 
     const material = await Material.create({
       title,
@@ -114,7 +111,7 @@ exports.uploadMaterial = async (req, res) => {
       fileType,
       fileName,
       originalName: req.file.originalname,
-      filePath: fileUrl,   // Cloudinary URL stored here
+      filePath: fileUrl,
       fileSize: req.file.size || 0,
       mimeType: req.file.mimetype,
       accessType: accessType || 'free',
@@ -123,35 +120,83 @@ exports.uploadMaterial = async (req, res) => {
       uploadedBy: req.user.id
     });
 
-    // const fileType = getFileType(req.file.mimetype);
-    // const fileName = req.file.filename;
-
-    // const material = await Material.create({
-    //   title,
-    //   description,
-    //   category,
-    //   subject,
-    //   fileType,
-    //   fileName,
-    //   originalName: req.file.originalname,
-    //   filePath: req.file.path,
-    //   fileSize: req.file.size,
-    //   mimeType: req.file.mimetype,
-    //   accessType: accessType || 'free',
-    //   downloadAllowed: downloadAllowed !== 'false',
-    //   tags: tags ? tags.split(',').map(t => t.trim()) : [],
-    //   uploadedBy: req.user.id
-    // });
-
-    res.status(201).json({ success: true, message: 'Material uploaded successfully!', data: material });
+    res.status(201).json({
+      success: true,
+      message: 'Material uploaded successfully!',
+      data: material
+    });
   } catch (err) {
     console.error('Upload error:', err);
-    if (req.file) {
-      try { fs.unlinkSync(req.file.path); } catch {}
-    }
-    res.status(500).json({ success: false, message: 'Upload failed. Please try again.' });
+    res.status(500).json({ success: false, message: err.message || 'Upload failed.' });
   }
 };
+
+// exports.uploadMaterial = async (req, res) => {
+//   try {
+//     if (!req.file) {
+//       return res.status(400).json({ success: false, message: 'No file uploaded.' });
+//     }
+
+//     const { title, description, category, subject, accessType, downloadAllowed, tags } = req.body;
+
+//     if (!title || !category) {
+//       // Clean up uploaded file
+//       fs.unlinkSync(req.file.path);
+//       return res.status(400).json({ success: false, message: 'Title and category are required.' });
+//     }
+
+//     const fileType = getFileType(req.file.mimetype);
+
+//     // Cloudinary returns path as the full URL
+//     const fileUrl = req.file.path;
+//     const fileName = req.file.filename || req.file.public_id;
+
+//     const material = await Material.create({
+//       title,
+//       description,
+//       category,
+//       subject,
+//       fileType,
+//       fileName,
+//       originalName: req.file.originalname,
+//       filePath: fileUrl,   // Cloudinary URL stored here
+//       fileSize: req.file.size || 0,
+//       mimeType: req.file.mimetype,
+//       accessType: accessType || 'free',
+//       downloadAllowed: downloadAllowed !== 'false',
+//       tags: tags ? tags.split(',').map(t => t.trim()) : [],
+//       uploadedBy: req.user.id
+//     });
+
+//     // const fileType = getFileType(req.file.mimetype);
+//     // const fileName = req.file.filename;
+
+//     // const material = await Material.create({
+//     //   title,
+//     //   description,
+//     //   category,
+//     //   subject,
+//     //   fileType,
+//     //   fileName,
+//     //   originalName: req.file.originalname,
+//     //   filePath: req.file.path,
+//     //   fileSize: req.file.size,
+//     //   mimeType: req.file.mimetype,
+//     //   accessType: accessType || 'free',
+//     //   downloadAllowed: downloadAllowed !== 'false',
+//     //   tags: tags ? tags.split(',').map(t => t.trim()) : [],
+//     //   uploadedBy: req.user.id
+//     // });
+
+//     res.status(201).json({ success: true, message: 'Material uploaded successfully!', data: material });
+//   } catch (err) {
+//     console.error('Upload error:', err);
+//     if (req.file) {
+//       try { fs.unlinkSync(req.file.path); } catch {}
+//     }
+//     res.status(500).json({ success: false, message: 'Upload failed. Please try again.' });
+//   }
+// };
 
 // PUT /api/materials/:id - Edit material (admin only)
 exports.updateMaterial = async (req, res) => {
@@ -175,9 +220,29 @@ exports.deleteMaterial = async (req, res) => {
     const material = await Material.findById(req.params.id);
     if (!material) return res.status(404).json({ success: false, message: 'Material not found.' });
 
-    // Delete file from disk
-    if (fs.existsSync(material.filePath)) {
-      fs.unlinkSync(material.filePath);
+    // Delete from Supabase if it's a cloud URL
+    if (material.filePath && material.filePath.startsWith('http')) {
+      try {
+        const { createClient } = require('@supabase/supabase-js');
+        const supabase = createClient(
+          process.env.SUPABASE_URL,
+          process.env.SUPABASE_SERVICE_KEY
+        );
+        // Extract file path from URL
+        const urlParts = material.filePath.split('/');
+        const filePath = urlParts.slice(-2).join('/'); // gets "pdfs/filename.pdf"
+        await supabase.storage
+          .from(process.env.SUPABASE_BUCKET || 'studyhub-files')
+          .remove([filePath]);
+      } catch (err) {
+        console.warn('Supabase delete warning:', err.message);
+      }
+    } else {
+      // Delete local file
+      const fs = require('fs');
+      if (fs.existsSync(material.filePath)) {
+        fs.unlinkSync(material.filePath);
+      }
     }
 
     await material.deleteOne();
@@ -186,6 +251,22 @@ exports.deleteMaterial = async (req, res) => {
     res.status(500).json({ success: false, message: 'Delete failed.' });
   }
 };
+// exports.deleteMaterial = async (req, res) => {
+//   try {
+//     const material = await Material.findById(req.params.id);
+//     if (!material) return res.status(404).json({ success: false, message: 'Material not found.' });
+
+//     // Delete file from disk
+//     if (fs.existsSync(material.filePath)) {
+//       fs.unlinkSync(material.filePath);
+//     }
+
+//     await material.deleteOne();
+//     res.json({ success: true, message: 'Material deleted successfully.' });
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: 'Delete failed.' });
+//   }
+// };
 
 // GET /api/materials/categories - Get all unique categories
 exports.getCategories = async (req, res) => {

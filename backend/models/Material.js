@@ -103,8 +103,16 @@ materialSchema.index({ category: 1, fileType: 1, accessType: 1 });
 // });
 
 // REPLACE WITH:
+// materialSchema.virtual('fileUrl').get(function() {
+//   // If filePath is already a full URL (Cloudinary), return it directly
+//   if (this.filePath && this.filePath.startsWith('http')) {
+//     return this.filePath;
+//   }
+//   // Fallback for local storage
+//   return `/uploads/${this.fileType}s/${this.fileName}`;
+// });
 materialSchema.virtual('fileUrl').get(function() {
-  // If filePath is already a full URL (Cloudinary), return it directly
+  // If filePath is already a full URL (Supabase), return directly
   if (this.filePath && this.filePath.startsWith('http')) {
     return this.filePath;
   }
