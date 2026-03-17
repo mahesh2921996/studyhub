@@ -133,12 +133,126 @@
 // };
 
 
+// /**
+//  * Contact Controller
+//  * ⚠️ Set in .env:
+//  *   EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_TO
+//  */
+// const nodemailer = require('nodemailer');
+
+// exports.sendMessage = async (req, res) => {
+//   try {
+//     const { name, email, message } = req.body;
+
+//     // Validate fields
+//     if (!name || !email || !message) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'All fields are required.'
+//       });
+//     }
+
+//     // Validate email format
+//     const emailRegex = /^\S+@\S+\.\S+$/;
+//     if (!emailRegex.test(email)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Invalid email address.'
+//       });
+//     }
+
+//     // If email not configured — log and return success
+//     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+//       console.log('📧 Contact form (email not configured):', { name, email, message });
+//       return res.json({
+//         success: true,
+//         message: 'Message received! We will get back to you soon.'
+//       });
+//     }
+
+//     // Create transporter
+//     const transporter = nodemailer.createTransport({
+//       host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+//       port: parseInt(process.env.EMAIL_PORT) || 587,
+//       secure: false,
+//       auth: {
+//         user: process.env.EMAIL_USER,
+//         pass: process.env.EMAIL_PASS
+//       },
+//       tls: {
+//         rejectUnauthorized: false
+//       }
+//     });
+
+//     // Send email to admin
+//     await transporter.sendMail({
+//       from: `"StudyHub Contact" <${process.env.EMAIL_USER}>`,
+//       to: process.env.EMAIL_TO || 'mbd2921996@gmail.com',
+//       replyTo: email,
+//       subject: `New Contact Message from ${name}`,
+//       html: `
+//         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+//           <div style="background: #1d4ed8; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+//             <h1 style="color: white; margin: 0;">📚 StudyHub</h1>
+//             <p style="color: #bfdbfe; margin: 5px 0 0;">New Contact Form Message</p>
+//           </div>
+//           <div style="background: white; padding: 30px; border: 1px solid #e2e8f0; border-radius: 0 0 8px 8px;">
+//             <p><strong>Name:</strong> ${name}</p>
+//             <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
+//             <p><strong>Message:</strong></p>
+//             <div style="background: #f8fafc; padding: 15px; border-left: 4px solid #1d4ed8; border-radius: 4px;">
+//               ${message.replace(/\n/g, '<br>')}
+//             </div>
+//             <p style="color: #94a3b8; font-size: 12px; margin-top: 20px;">
+//               Received: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+//             </p>
+//           </div>
+//         </div>
+//       `
+//     });
+
+//     // Send confirmation to user
+//     await transporter.sendMail({
+//       from: `"StudyHub" <${process.env.EMAIL_USER}>`,
+//       to: email,
+//       subject: 'Thank you for contacting StudyHub!',
+//       html: `
+//         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+//           <div style="background: #1d4ed8; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+//             <h1 style="color: white; margin: 0;">📚 StudyHub</h1>
+//           </div>
+//           <div style="background: white; padding: 30px; border: 1px solid #e2e8f0; border-radius: 0 0 8px 8px;">
+//             <h2>Hi ${name}! 👋</h2>
+//             <p>Thank you for reaching out. We have received your message and will get back to you within 24-48 hours.</p>
+//             <p style="color: #94a3b8; font-size: 12px;">Best regards,<br>The StudyHub Team</p>
+//           </div>
+//         </div>
+//       `
+//     });
+
+//     res.json({
+//       success: true,
+//       message: 'Message sent successfully! We will get back to you soon.'
+//     });
+
+//   } catch (err) {
+//     console.error('Contact email error:', err.message);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Failed to send message. Please try again.'
+//     });
+//   }
+// };
+
+
 /**
- * Contact Controller
+ * Contact Controller — using Resend
  * ⚠️ Set in .env:
- *   EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_TO
+ *   RESEND_API_KEY=re_xxxx
+ *   EMAIL_TO=mbd2921996@gmail.com
  */
-const nodemailer = require('nodemailer');
+
+const { Resend } = require('resend');
 
 exports.sendMessage = async (req, res) => {
   try {
@@ -161,34 +275,22 @@ exports.sendMessage = async (req, res) => {
       });
     }
 
-    // If email not configured — log and return success
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      console.log('📧 Contact form (email not configured):', { name, email, message });
+    // If Resend not configured
+    if (!process.env.RESEND_API_KEY) {
+      console.log('📧 Contact form (Resend not configured):', { name, email, message });
       return res.json({
         success: true,
         message: 'Message received! We will get back to you soon.'
       });
     }
 
-    // Create transporter
-    const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.EMAIL_PORT) || 587,
-      secure: false,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      },
-      tls: {
-        rejectUnauthorized: false
-      }
-    });
+    const resend = new Resend(process.env.RESEND_API_KEY);
 
     // Send email to admin
-    await transporter.sendMail({
-      from: `"StudyHub Contact" <${process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: 'StudyHub <onboarding@resend.dev>',
       to: process.env.EMAIL_TO || 'mbd2921996@gmail.com',
-      replyTo: email,
+      reply_to: email,
       subject: `New Contact Message from ${name}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -212,8 +314,8 @@ exports.sendMessage = async (req, res) => {
     });
 
     // Send confirmation to user
-    await transporter.sendMail({
-      from: `"StudyHub" <${process.env.EMAIL_USER}>`,
+    await resend.emails.send({
+      from: 'StudyHub <onboarding@resend.dev>',
       to: email,
       subject: 'Thank you for contacting StudyHub!',
       html: `
@@ -222,9 +324,16 @@ exports.sendMessage = async (req, res) => {
             <h1 style="color: white; margin: 0;">📚 StudyHub</h1>
           </div>
           <div style="background: white; padding: 30px; border: 1px solid #e2e8f0; border-radius: 0 0 8px 8px;">
-            <h2>Hi ${name}! 👋</h2>
-            <p>Thank you for reaching out. We have received your message and will get back to you within 24-48 hours.</p>
-            <p style="color: #94a3b8; font-size: 12px;">Best regards,<br>The StudyHub Team</p>
+            <h2 style="color: #1e293b;">Hi ${name}! 👋</h2>
+            <p style="color: #475569;">Thank you for reaching out to StudyHub. We have received your message and will get back to you within 24-48 hours.</p>
+            <div style="background: #f1f5f9; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 0; color: #64748b; font-style: italic;">
+                "${message.substring(0, 100)}${message.length > 100 ? '...' : ''}"
+              </p>
+            </div>
+            <p style="color: #94a3b8; font-size: 12px;">
+              Best regards,<br>The StudyHub Team
+            </p>
           </div>
         </div>
       `
@@ -236,7 +345,7 @@ exports.sendMessage = async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Contact email error:', err.message);
+    console.error('Resend email error:', err.message);
     res.status(500).json({
       success: false,
       message: 'Failed to send message. Please try again.'
