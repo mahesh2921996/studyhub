@@ -239,14 +239,53 @@ export default function MaterialDetailPage() {
   const fileUrl = material?.fileUrl || null;
 
   // Handle download — fetch as blob so it downloads directly
+  // const handleDownload = async () => {
+  //   if (!user) { toast.error('Please log in to download'); return navigate('/login'); }
+  //   if (!isMember() && !isAdmin()) { toast.error('Membership required to download'); return navigate('/membership'); }
+
+  //   setDownloading(true);
+  //   try {
+  //     if (fileUrl && fileUrl.startsWith('http')) {
+  //       // Fetch file as blob then force download
+  //       const response = await fetch(fileUrl);
+  //       const blob = await response.blob();
+  //       const blobUrl = window.URL.createObjectURL(blob);
+  //       const a = document.createElement('a');
+  //       a.href = blobUrl;
+  //       a.download = material.originalName || material.title;
+  //       document.body.appendChild(a);
+  //       a.click();
+  //       document.body.removeChild(a);
+  //       window.URL.revokeObjectURL(blobUrl);
+  //       toast.success('Download started!');
+  //     } else {
+  //       // Local storage download
+  //       const res = await materialService.download(material._id);
+  //       const url = window.URL.createObjectURL(new Blob([res.data]));
+  //       const a = document.createElement('a');
+  //       a.href = url;
+  //       a.download = material.originalName || material.title;
+  //       a.click();
+  //       window.URL.revokeObjectURL(url);
+  //       toast.success('Download started!');
+  //     }
+  //   } catch {
+  //     toast.error('Download failed. Please try again.');
+  //   } finally {
+  //     setDownloading(false);
+  //   }
+  // };
+
   const handleDownload = async () => {
     if (!user) { toast.error('Please log in to download'); return navigate('/login'); }
     if (!isMember() && !isAdmin()) { toast.error('Membership required to download'); return navigate('/membership'); }
 
     setDownloading(true);
     try {
+      // Track download count
+      await materialService.download(material._id);
+
       if (fileUrl && fileUrl.startsWith('http')) {
-        // Fetch file as blob then force download
         const response = await fetch(fileUrl);
         const blob = await response.blob();
         const blobUrl = window.URL.createObjectURL(blob);
@@ -259,7 +298,6 @@ export default function MaterialDetailPage() {
         window.URL.revokeObjectURL(blobUrl);
         toast.success('Download started!');
       } else {
-        // Local storage download
         const res = await materialService.download(material._id);
         const url = window.URL.createObjectURL(new Blob([res.data]));
         const a = document.createElement('a');
@@ -349,23 +387,84 @@ export default function MaterialDetailPage() {
                   Become a Member
                 </Link>
               </div>
-
+            
             ) : material.fileType === 'pdf' ? (
               /* ── PDF Viewer ── */
               <div style={{
                 background: 'var(--slate-800)',
                 borderRadius: 'var(--radius-lg)',
                 overflow: 'hidden',
-                minHeight: '700px'
+                minHeight: '700px',
+                position: 'relative'
               }}>
                 <iframe
-                  src={fileUrl}
+                  src={`${fileUrl}#toolbar=1&navpanes=1&scrollbar=1&view=FitH`}
                   width="100%"
                   height="700px"
+                  className="pdf-iframe"
                   style={{ border: 'none', display: 'block' }}
                   title={material.title}
                 />
+
+                {/* When download is disabled — cover the download/print/save
+                    buttons in the top-right corner of the PDF toolbar */}
+                {!canDownload && (
+                  <>
+                    {/* Covers download, print, save buttons on Chrome/Edge */}
+                    <div style={{
+                      position: 'absolute',
+                      top: 0,
+                      right: 0,
+                      width: '120px',
+                      height: '40px',
+                      background: '#2d3748',
+                      zIndex: 10,
+                      borderRadius: '0 0 0 6px'
+                    }} />
+                    {/* Small label so user knows why buttons are hidden */}
+                    <div style={{
+                      position: 'absolute',
+                      top: 0,
+                      right: 0,
+                      width: '120px',
+                      height: '40px',
+                      background: '#1e293b',
+                      zIndex: 11,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px',
+                      borderRadius: '0 var(--radius-lg) 0 6px'
+                    }}>
+                      <FiLock size={11} style={{ color: '#94a3b8' }} />
+                      <span style={{
+                        fontSize: '11px',
+                        color: '#94a3b8',
+                        fontFamily: 'var(--font-body)'
+                      }}>
+                        No download
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
+
+            // ) : material.fileType === 'pdf' ? (
+            //   /* ── PDF Viewer ── */
+            //   <div style={{
+            //     background: 'var(--slate-800)',
+            //     borderRadius: 'var(--radius-lg)',
+            //     overflow: 'hidden',
+            //     minHeight: '700px'
+            //   }}>
+            //     <iframe
+            //       src={fileUrl}
+            //       width="100%"
+            //       height="700px"
+            //       style={{ border: 'none', display: 'block' }}
+            //       title={material.title}
+            //     />
+            //   </div>
             
             ) : material.fileType === 'image' ? (
               /* ── Image Preview with Zoom ── */
